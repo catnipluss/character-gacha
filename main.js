@@ -193,6 +193,13 @@ function handleApiResponse(data) {
                     generatedImage.src = imageUrl;
                     generatedImage.style.display = 'block';
                     cardPlaceholder.style.display = 'none';
+                } else if (text) {
+                    // 如果有文本但没有图片，显示重试提示
+                    cardPlaceholder.innerHTML = `
+                        <div class="card-placeholder-icon">⚠️</div>
+                        <div>图片生成失败，请重新抽取</div>
+                    `;
+                    cardPlaceholder.style.display = 'flex';
                 }
                 break;
         }
@@ -207,8 +214,14 @@ async function generateImage(prompt) {
     cardLoading.style.display = 'flex';
     generatedImage.style.display = 'none';
     cardText.textContent = '';
-    cardPlaceholder.style.display = 'flex';
     cardError.style.display = 'none';
+    
+    // 重置占位符为默认状态
+    cardPlaceholder.innerHTML = `
+        <div class="card-placeholder-icon">🎴</div>
+        <div>点击抽取按钮开始生成角色卡片</div>
+    `;
+    cardPlaceholder.style.display = 'flex';
 
     try {
         const response = await fetch(API_CONFIG.url, {
@@ -236,6 +249,7 @@ async function generateImage(prompt) {
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let hasImage = false;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -247,13 +261,29 @@ async function generateImage(prompt) {
             for (const line of lines) {
                 if (line.startsWith('data:')) {
                     const data = line.slice(5);
+                    if (data.includes('^^^http')) {
+                        hasImage = true;
+                    }
                     handleApiResponse(data);
                 }
             }
         }
+
+        // 如果整个响应结束后还是没有图片，显示错误
+        if (!hasImage) {
+            cardPlaceholder.innerHTML = `
+                <div class="card-placeholder-icon">⚠️</div>
+                <div>图片生成失败，请重新抽取</div>
+            `;
+            cardPlaceholder.style.display = 'flex';
+        }
     } catch (error) {
         console.error('生成失败:', error);
         showError('生成失败，请重试');
+        cardPlaceholder.innerHTML = `
+            <div class="card-placeholder-icon">⚠️</div>
+            <div>生成失败，请重新抽取</div>
+        `;
         cardPlaceholder.style.display = 'flex';
     } finally {
         cardLoading.style.display = 'none';
