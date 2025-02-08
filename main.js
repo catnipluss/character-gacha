@@ -3,16 +3,19 @@ import { getKeywords, getDimensions, getRandomKeyword } from './keywords.js';
 // API 配置
 const API_CONFIG = {
     url: 'https://api.coze.cn/v3/chat',
-    token: 'pat_xkZDwU3d8yAcSKT3MsSzyGpAJI4fV8rMNzsSx1Z3cHcp61hyhUbQ5BCQ1ogBTR4b',
     botId: '7468199399991066659',
-    userId: '123456789'
+    userId: '123456789',
+    token: 'pat_xkZDwU3d8yAcSKT3MsSzyGpAJI4fV8rMNzsSx1Z3cHcp61hyhUbQ5BCQ1ogBTR4b'
 };
 
 // DOM 元素
 const slotMachine = document.getElementById('slotMachine');
 const responseDiv = document.getElementById('response');
 const generatedImage = document.querySelector('.generated-image');
-const loadingElement = document.querySelector('.loading');
+const cardLoading = document.querySelector('.card-loading');
+const cardText = document.querySelector('.card-text');
+const cardError = document.querySelector('.card-error');
+const cardPlaceholder = document.querySelector('.card-placeholder');
 const tabButtons = document.querySelectorAll('.tab-button');
 const generateButton = document.querySelector('.generate-button');
 
@@ -155,6 +158,108 @@ async function startSpinning() {
     }
 }
 
+// 显示错误信息
+function showError(message) {
+    cardError.textContent = message;
+    cardError.style.display = 'block';
+    setTimeout(() => {
+        cardError.style.display = 'none';
+    }, 5000);
+}
+
+// 处理API返回的数据
+function handleApiResponse(data) {
+    try {
+        const parsedData = JSON.parse(data);
+        
+        switch(parsedData.type) {
+            case 'function_call':
+                console.log('Function call:', parsedData.content);
+                break;
+                
+            case 'tool_response':
+                console.log('Tool response:', parsedData.content);
+                break;
+                
+            case 'answer':
+                const [text, imageUrl] = parsedData.content.split('^^^');
+                
+                if (text) {
+                    cardText.textContent = text;
+                    cardText.style.display = 'block';
+                }
+                
+                if (imageUrl) {
+                    generatedImage.src = imageUrl;
+                    generatedImage.style.display = 'block';
+                    cardPlaceholder.style.display = 'none';
+                }
+                break;
+        }
+    } catch (error) {
+        console.error('Error parsing API response:', error);
+        showError('解析响应失败');
+    }
+}
+
+// 生成图片
+async function generateImage(prompt) {
+    cardLoading.style.display = 'flex';
+    generatedImage.style.display = 'none';
+    cardText.textContent = '';
+    cardPlaceholder.style.display = 'flex';
+    cardError.style.display = 'none';
+
+    try {
+        const response = await fetch(API_CONFIG.url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_CONFIG.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                bot_id: API_CONFIG.botId,
+                user_id: API_CONFIG.userId,
+                stream: true,
+                auto_save_history: true,
+                additional_messages: [{
+                    role: 'user',
+                    content: prompt,
+                    content_type: 'text'
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('API请求失败');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data:')) {
+                    const data = line.slice(5);
+                    handleApiResponse(data);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('生成失败:', error);
+        showError('生成失败，请重试');
+        cardPlaceholder.style.display = 'flex';
+    } finally {
+        cardLoading.style.display = 'none';
+    }
+}
+
 // 解析流式返回的数据
 function parseStreamData(chunk) {
     const lines = chunk.split('\n').filter(line => line.trim());
@@ -184,61 +289,8 @@ function displayImage(imageUrl) {
     if (imageUrl && imageUrl.startsWith('http')) {
         generatedImage.src = imageUrl;
         generatedImage.style.display = 'block';
-        loadingElement.style.display = 'none';
+        cardLoading.style.display = 'none';
         responseDiv.style.display = 'none';  // 隐藏状态文本
-    }
-}
-
-// 生成图片
-async function generateImage(prompt) {
-    responseDiv.textContent = '正在生成角色卡片...';
-    responseDiv.style.display = 'block';  // 显示状态文本
-    generatedImage.style.display = 'none';
-    loadingElement.style.display = 'block';
-
-    try {
-        const requestData = {
-            bot_id: API_CONFIG.botId,
-            user_id: API_CONFIG.userId,
-            stream: true,
-            auto_save_history: true,
-            additional_messages: [
-                {
-                    role: 'user',
-                    content: prompt,
-                    content_type: 'text'
-                }
-            ]
-        };
-
-        const response = await fetch(API_CONFIG.url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${API_CONFIG.token}`
-            },
-            body: JSON.stringify(requestData)
-        });
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value);
-            const content = parseStreamData(chunk);
-            
-            if (content) {
-                displayImage(content);
-            }
-        }
-    } catch (error) {
-        console.error('API 调用失败:', error);
-        responseDiv.textContent = '抽卡失败，请重试';
-        responseDiv.style.display = 'block';
-        loadingElement.style.display = 'none';
     }
 }
 
