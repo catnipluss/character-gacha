@@ -19,26 +19,88 @@ const cardPlaceholder = document.querySelector('.card-placeholder');
 const tabButtons = document.querySelectorAll('.tab-button');
 const generateButton = document.querySelector('.generate-button');
 
-// 当前选中的性别
-let currentGender = 'female';
+// 当前选中的卡包类型
+let currentPackType = 'female';
 
 // 老虎机状态
 let isSpinning = false;
 let currentSlots = [];
 
-// 初始化标签页切换
-tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        if (isSpinning) return;
-        
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-        currentGender = button.dataset.gender;
-        
-        // 重新初始化老虎机
-        initializeSlotMachine();
+// 获取当前卡包的维度
+function getCurrentDimensions() {
+    return getDimensions(currentPackType);
+}
+
+// 获取当前卡包的随机关键词
+function getCurrentRandomKeyword(dimension) {
+    return getRandomKeyword(currentPackType, dimension);
+}
+
+// 初始化标签页切换事件
+function initializeTabs() {
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            if (isSpinning) return;
+            
+            // 移除所有活动状态
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            // 添加当前活动状态
+            button.classList.add('active');
+            // 更新当前卡包类型
+            currentPackType = button.classList[1];  // 使用第二个类名作为类型
+            // 重置界面
+            resetCharacterCard();
+            // 更新维度显示
+            updateDimensionDisplay();
+            // 重新初始化老虎机
+            initializeSlotMachine();
+        });
     });
-});
+}
+
+// 更新维度显示
+function updateDimensionDisplay() {
+    const dimensions = getCurrentDimensions();
+    const dimensionElements = document.querySelectorAll('.dimension-label');
+    
+    dimensions.forEach((dimension, index) => {
+        if (dimensionElements[index]) {
+            // 将维度名称转换为中文显示
+            let displayName = getDimensionDisplayName(dimension);
+            dimensionElements[index].textContent = displayName;
+        }
+    });
+}
+
+// 获取维度的显示名称
+function getDimensionDisplayName(dimension) {
+    const displayNames = {
+        // 女性卡包
+        physique: '身材',
+        dress: '穿搭',
+        scene: '氛围',
+        relationship: '身份',
+        
+        // 男性卡包
+        appearance: '相貌',
+        outfit: '装扮',
+        scene_male: '场合',
+        personality: '性格',
+        
+        // 萝莉卡包
+        appearance_loli: '萌点',
+        outfit_loli: '搭配',
+        action: '动作',
+        setting: '环境',
+        
+        // 战士卡包
+        equipment: '战甲',
+        weapon: '武器',
+        scene_warrior: '战场',
+        status: '姿态'
+    };
+    return displayNames[dimension] || dimension;
+}
 
 // 创建老虎机轮盘
 function createSlotReel(dimension, keywords) {
@@ -51,7 +113,7 @@ function createSlotReel(dimension, keywords) {
     
     const slotItem = document.createElement('div');
     slotItem.className = 'slot-item';
-    slotItem.textContent = '❓';
+    slotItem.innerHTML = '<span>❓</span>';
     
     reelContainer.appendChild(dimensionLabel);
     reelContainer.appendChild(slotItem);
@@ -61,21 +123,8 @@ function createSlotReel(dimension, keywords) {
         container: reelContainer,
         dimension: dimension,
         keywords: keywords,
-        isSpinning: false,
         finalValue: null
     };
-}
-
-// 获取维度的显示名称
-function getDimensionDisplayName(dimension) {
-    const dimensionMap = {
-        physique: '身材',
-        dress: '打扮',
-        scene: '场景',
-        relationship: '关系',
-        identity: '身份'
-    };
-    return dimensionMap[dimension] || dimension;
 }
 
 // 初始化老虎机
@@ -83,13 +132,16 @@ function initializeSlotMachine() {
     slotMachine.innerHTML = '';
     currentSlots = [];
     
-    const dimensions = getDimensions(currentGender);
+    const dimensions = getCurrentDimensions();
     dimensions.forEach(dimension => {
-        const keywords = getKeywords(currentGender, dimension);
+        const keywords = getKeywords(currentPackType, dimension);
         const slot = createSlotReel(dimension, keywords);
         slotMachine.appendChild(slot.container);
         currentSlots.push(slot);
     });
+    
+    // 重置角色卡片
+    resetCharacterCard();
 }
 
 // 生成随机延迟时间
@@ -97,80 +149,169 @@ function getRandomDelay(min, max) {
     return Math.random() * (max - min) + min;
 }
 
-// 滚动单个轮盘
-async function spinReel(slot, index) {
-    return new Promise(resolve => {
-        slot.isSpinning = true;
-        
-        // 设置滚动动画
-        const spinInterval = setInterval(() => {
-            if (!slot.isSpinning) {
-                clearInterval(spinInterval);
-                slot.element.textContent = slot.finalValue;
-                slot.element.classList.remove('spinning');
-                resolve();
-                return;
-            }
-            
-            const randomKeyword = getRandomKeyword(currentGender, slot.dimension);
-            slot.element.textContent = randomKeyword;
-            slot.element.classList.add('spinning');
-        }, 100);
-        
-        // 设置停止时间
-        setTimeout(() => {
-            slot.isSpinning = false;
-            slot.finalValue = getRandomKeyword(currentGender, slot.dimension);
-        }, 2000 + index * 1000); // 每个轮盘依次停止，间隔1秒
+// 生成最终的关键词组合
+function generateFinalKeywords() {
+    const dimensions = getCurrentDimensions();
+    return dimensions.map(dimension => getCurrentRandomKeyword(dimension));
+}
+
+// 显示加载状态
+function showLoadingState() {
+    generateButton.textContent = '生成中...';
+    generateButton.disabled = true;
+    cardPlaceholder.innerHTML = `
+        <div class="loading-animation">
+            <div class="loading-icon">🎨</div>
+            <div class="loading-text">AI正在绘制角色...</div>
+            <div class="loading-subtext">这可能需要一点时间</div>
+        </div>
+    `;
+}
+
+// 格式化描述文本
+function formatDescription(text) {
+    if (!text) return '';
+    
+    // 处理括号中的文本
+    return text.replace(/（([^）]+)）|\(([^)]+)\)/g, (match, p1, p2) => {
+        const content = p1 || p2;
+        return `<span class="action">（${content}）</span>`;
     });
 }
 
-// 开始所有轮盘的滚动
-async function startSpinning() {
-    if (isSpinning) return;
-    isSpinning = true;
-    generateButton.disabled = true;
+// 显示成功状态
+async function showSuccess(result) {
+    // 先隐藏占位符
+    cardPlaceholder.classList.add('hidden');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    cardPlaceholder.style.display = 'none';
     
-    try {
-        // 同时开始所有轮盘的动画
-        await Promise.all(currentSlots.map((slot, index) => spinReel(slot, index)));
-        
-        // 收集所有维度的最终结果
-        const dimensions = currentSlots.map(slot => 
-            `${getDimensionDisplayName(slot.dimension)}：${slot.finalValue}`
-        );
-        
-        // 添加性别字段
-        const gender = currentGender === 'female' ? '性别：女性' : '性别：男性';
-        dimensions.unshift(gender);  // 将性别放在最前面
-        
-        // 组合成最终的 prompt
-        const prompt = dimensions.join('\n');
-        
-        // 调用 API 生成图片
-        await generateImage(prompt);
-    } catch (error) {
-        console.error('Error during spinning:', error);
-        responseDiv.textContent = '抽卡失败，请重试';
-    } finally {
-        isSpinning = false;
-        generateButton.disabled = false;
+    // 显示图片和文字
+    generatedImage.classList.add('hidden');
+    cardText.classList.add('hidden');
+    
+    // 设置图片源并等待加载完成
+    await new Promise((resolve) => {
+        generatedImage.onload = resolve;
+        generatedImage.src = result.imageUrl;
+    });
+    
+    cardText.innerHTML = result.description;
+    generatedImage.style.display = 'block';
+    cardText.style.display = 'block';
+    
+    // 触发重排后显示
+    setTimeout(() => {
+        generatedImage.classList.remove('hidden');
+        cardText.classList.remove('hidden');
+    }, 50);
+    
+    generateButton.textContent = '重新抽取';
+    generateButton.disabled = false;
+}
+
+// 显示错误状态
+function showError(error) {
+    cardPlaceholder.style.display = 'none';
+    cardError.innerHTML = `
+        <div class="error-icon">⚠️</div>
+        <div class="error-message">${error.message || '生成失败'}</div>
+        <div class="error-suggestion">生图服务不太稳定</div>
+    `;
+    cardError.style.display = 'block';
+    generateButton.textContent = '重新抽取';
+    generateButton.disabled = false;
+}
+
+// 清理状态
+function cleanup() {
+    isSpinning = false;
+    generateButton.classList.remove('error');
+}
+
+// 确保最小动画时间
+async function ensureMinimumDuration(promise, minDuration) {
+    const startTime = Date.now();
+    await promise;
+    const elapsed = Date.now() - startTime;
+    if (elapsed < minDuration) {
+        await new Promise(resolve => setTimeout(resolve, minDuration - elapsed));
     }
 }
 
-// 显示错误信息
-function showError(message) {
-    cardError.textContent = message;
-    cardError.style.display = 'block';
-    setTimeout(() => {
-        cardError.style.display = 'none';
-    }, 5000);
+// 播放单个轮盘的动画
+async function playSlotAnimation(slot, finalValue) {
+    const spinDuration = 2000; // 2秒
+    const spinInterval = 67; // 约每秒15次
+    const totalSpins = Math.floor(spinDuration / spinInterval);
+    
+    slot.element.classList.remove('selected');
+    slot.element.classList.add('spinning');
+    
+    for (let i = 0; i < totalSpins; i++) {
+        const randomKeyword = getCurrentRandomKeyword(slot.dimension);
+        slot.element.innerHTML = `<span>${randomKeyword}</span>`;
+        await new Promise(resolve => setTimeout(resolve, spinInterval));
+    }
+    
+    slot.finalValue = finalValue;
+    slot.element.innerHTML = `<span>${finalValue}</span>`;
+    slot.element.classList.remove('spinning');
+    slot.element.classList.add('selected');
+}
+
+// 播放所有轮盘的动画
+async function playSpinningAnimation(finalKeywords) {
+    // 重置显示状态
+    cardText.style.display = 'none';
+    cardError.style.display = 'none';
+    generatedImage.style.display = 'none';
+    cardPlaceholder.classList.add('hidden');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    cardPlaceholder.style.display = 'flex';
+    cardPlaceholder.innerHTML = `
+        <div class="card-placeholder-icon">🎲</div>
+        <div>正在抽取角色属性...</div>
+    `;
+    cardPlaceholder.classList.remove('hidden');
+    
+    // 先将除第一个维度外的所有维度重置为问号
+    const resetPromises = [];
+    for (let i = 1; i < currentSlots.length; i++) {
+        resetPromises.push(
+            new Promise(resolve => {
+                setTimeout(() => {
+                    resetSlot(currentSlots[i]);
+                    resolve();
+                }, i * 100);
+            })
+        );
+    }
+    await Promise.all(resetPromises);
+    
+    // 依次播放每个轮盘的动画
+    for (let i = 0; i < currentSlots.length; i++) {
+        await playSlotAnimation(currentSlots[i], finalKeywords[i]);
+        
+        if (i < currentSlots.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 150 + i * 50));
+        }
+    }
+}
+
+// 重置单个轮盘到初始状态
+function resetSlot(slot) {
+    slot.element.classList.remove('spinning', 'selected');
+    slot.element.innerHTML = '<span>❓</span>';
+    slot.finalValue = null;
 }
 
 // 处理API返回的数据
 function handleApiResponse(data) {
     try {
         const parsedData = JSON.parse(data);
+        let result = {};
         
         switch(parsedData.type) {
             case 'function_call':
@@ -185,109 +326,111 @@ function handleApiResponse(data) {
                 const [text, imageUrl] = parsedData.content.split('^^^');
                 
                 if (text) {
-                    cardText.textContent = text;
-                    cardText.style.display = 'block';
+                    result.description = formatDescription(text);
                 }
                 
                 if (imageUrl) {
-                    generatedImage.src = imageUrl;
-                    generatedImage.style.display = 'block';
-                    cardPlaceholder.style.display = 'none';
-                } else if (text) {
-                    // 如果有文本但没有图片，显示重试提示
-                    cardPlaceholder.innerHTML = `
-                        <div class="card-placeholder-icon">⚠️</div>
-                        <div>图片生成失败，请重新抽取</div>
-                    `;
-                    cardPlaceholder.style.display = 'flex';
+                    result.imageUrl = imageUrl;
                 }
-                break;
+                
+                return result;
         }
     } catch (error) {
-        console.error('Error parsing API response:', error);
-        showError('解析响应失败');
+        console.error('解析API响应失败:', error);
     }
+    return null;
+}
+
+// 生成角色描述
+function generateCharacterDescription(keywords) {
+    // 获取当前卡包的维度
+    const dimensions = getCurrentDimensions();
+    
+    // 根据不同卡包类型生成不同的隐藏词
+    let hiddenKeyword;
+    switch(currentPackType) {
+        case 'female':
+            hiddenKeyword = '女性';
+            break;
+        case 'male':
+            hiddenKeyword = '男性';
+            break;
+        case 'loli':
+            hiddenKeyword = '萝莉';
+            break;
+        case 'warrior':
+            // 战士卡包随机选择性别
+            hiddenKeyword = Math.random() < 0.5 ? '女战士' : '男战士';
+            break;
+        default:
+            hiddenKeyword = '';
+    }
+
+    // 组合维度和关键词
+    const keywordPairs = dimensions.map((dimension, index) => 
+        `${getDimensionDisplayName(dimension)}：${keywords[index]}`
+    );
+
+    // 将隐藏词放在最前面
+    return [hiddenKeyword, ...keywordPairs].join(' ');
 }
 
 // 生成图片
-async function generateImage(prompt) {
-    cardLoading.style.display = 'flex';
-    generatedImage.style.display = 'none';
-    cardText.textContent = '';
-    cardError.style.display = 'none';
-    
-    // 重置占位符为默认状态
-    cardPlaceholder.innerHTML = `
-        <div class="card-placeholder-icon">🎴</div>
-        <div>点击抽取按钮开始生成角色卡片</div>
-    `;
-    cardPlaceholder.style.display = 'flex';
+async function generateCharacter(keywords) {
+    const prompt = generateCharacterDescription(keywords);
+    const response = await fetch(API_CONFIG.url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${API_CONFIG.token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            bot_id: API_CONFIG.botId,
+            user_id: API_CONFIG.userId,
+            stream: true,
+            auto_save_history: true,
+            additional_messages: [{
+                role: 'user',
+                content: prompt,
+                content_type: 'text'
+            }]
+        })
+    });
 
-    try {
-        const response = await fetch(API_CONFIG.url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_CONFIG.token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                bot_id: API_CONFIG.botId,
-                user_id: API_CONFIG.userId,
-                stream: true,
-                auto_save_history: true,
-                additional_messages: [{
-                    role: 'user',
-                    content: prompt,
-                    content_type: 'text'
-                }]
-            })
-        });
+    if (!response.ok) {
+        throw new Error('API请求失败');
+    }
 
-        if (!response.ok) {
-            throw new Error('API请求失败');
-        }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let hasImage = false;
+    let finalResult = null;
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let hasImage = false;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
-
-            for (const line of lines) {
-                if (line.startsWith('data:')) {
-                    const data = line.slice(5);
-                    if (data.includes('^^^http')) {
-                        hasImage = true;
-                    }
-                    handleApiResponse(data);
+        for (const line of lines) {
+            if (line.startsWith('data:')) {
+                const data = line.slice(5);
+                const result = handleApiResponse(data);
+                if (result) {
+                    if (result.imageUrl) hasImage = true;
+                    finalResult = { ...finalResult, ...result };
                 }
             }
         }
-
-        // 如果整个响应结束后还是没有图片，显示错误
-        if (!hasImage) {
-            cardPlaceholder.innerHTML = `
-                <div class="card-placeholder-icon">⚠️</div>
-                <div>图片生成失败，请重新抽取</div>
-            `;
-            cardPlaceholder.style.display = 'flex';
-        }
-    } catch (error) {
-        console.error('生成失败:', error);
-        showError('生成失败，请重试');
-        cardPlaceholder.innerHTML = `
-            <div class="card-placeholder-icon">⚠️</div>
-            <div>生成失败，请重新抽取</div>
-        `;
-        cardPlaceholder.style.display = 'flex';
-    } finally {
-        cardLoading.style.display = 'none';
     }
+
+    // 如果整个响应结束后还是没有图片，显示错误
+    if (!hasImage || !finalResult || !finalResult.imageUrl) {
+        throw new Error('图片生成失败，请重新生成');
+    }
+
+    return finalResult;
 }
 
 // 解析流式返回的数据
@@ -324,8 +467,84 @@ function displayImage(imageUrl) {
     }
 }
 
+// 重置角色卡片到初始状态
+async function resetCharacterCard() {
+    // 先隐藏现有内容
+    if (cardText.style.display !== 'none') cardText.classList.add('hidden');
+    if (cardError.style.display !== 'none') cardError.classList.add('hidden');
+    if (generatedImage.style.display !== 'none') generatedImage.classList.add('hidden');
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // 隐藏所有元素
+    cardText.style.display = 'none';
+    cardError.style.display = 'none';
+    generatedImage.style.display = 'none';
+    
+    // 准备显示占位符
+    cardPlaceholder.classList.add('hidden');
+    cardPlaceholder.style.display = 'flex';
+    cardPlaceholder.innerHTML = `
+        <div class="card-placeholder-icon">🎴</div>
+        <div class="card-placeholder-content">
+            <div class="start-hint">点击抽取按钮开始生成角色卡片</div>
+            <div class="start-subhint"> </div>
+        </div>
+    `;
+    
+    // 触发重排后显示
+    setTimeout(() => {
+        cardPlaceholder.classList.remove('hidden');
+    }, 50);
+}
+
+// 开始抽取流程
+async function startSpinning() {
+    if (isSpinning) return;
+    isSpinning = true;
+    
+    try {
+        // 1. 生成最终关键词
+        const finalKeywords = generateFinalKeywords();
+        
+        // 2. 更新按钮状态
+        generateButton.textContent = '抽取中...';
+        generateButton.disabled = true;
+        
+        // 3. 播放动画
+        const animationPromise = playSpinningAnimation(finalKeywords);
+        
+        // 4. 启动API调用（带超时和重试）
+        const apiPromise = Promise.race([
+            generateCharacter(finalKeywords),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('生成超时，请重试')), 30000)
+            )
+        ]);
+        
+        await animationPromise;
+        
+        // 5. 显示加载动画
+        showLoadingState();
+        
+        // 6. 等待API结果
+        const result = await apiPromise;
+        showSuccess(result);
+    } catch (error) {
+        generateButton.classList.add('error');
+        showError(error);
+    } finally {
+        cleanup();
+    }
+}
+
 // 初始化事件监听
 generateButton.addEventListener('click', startSpinning);
 
-// 页面加载完成后初始化老虎机
-document.addEventListener('DOMContentLoaded', initializeSlotMachine);
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+    initializeTabs();
+    updateDimensionDisplay();
+    initializeSlotMachine();  // 添加这行，确保初始化老虎机
+    resetCharacterCard();
+});
