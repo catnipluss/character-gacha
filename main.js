@@ -38,6 +38,8 @@ function getCurrentRandomKeyword(dimension) {
 
 // 初始化标签页切换事件
 function initializeTabs() {
+    if (!tabButtons.length) return;
+    
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             if (isSpinning) return;
@@ -48,10 +50,13 @@ function initializeTabs() {
             button.classList.add('active');
             // 更新当前卡包类型
             currentPackType = button.classList[1];  // 使用第二个类名作为类型
-            // 更新维度显示
-            updateDimensionDisplay();
+            
+            // 重置当前槽位
+            currentSlots = null;
             // 重新初始化老虎机，但保持问号状态
             initializeSlotMachine(true);
+            // 更新维度显示
+            updateDimensionDisplay();
             
             // 记录切换卡包行为
             trackEvent('卡包', '切换', button.textContent, 1);
@@ -62,13 +67,16 @@ function initializeTabs() {
 // 更新维度显示
 function updateDimensionDisplay() {
     const dimensions = getCurrentDimensions();
-    const dimensionElements = document.querySelectorAll('.dimension-label');
+    const reels = document.querySelectorAll('.slot-reel');
+    
+    if (!dimensions || !reels.length) return;
     
     dimensions.forEach((dimension, index) => {
-        if (dimensionElements[index]) {
-            // 将维度名称转换为中文显示
-            let displayName = getDimensionDisplayName(dimension);
-            dimensionElements[index].textContent = displayName;
+        if (reels[index]) {
+            const label = reels[index].querySelector('.dimension-label');
+            if (label) {
+                label.textContent = getDimensionDisplayName(dimension);
+            }
         }
     });
 }
@@ -105,46 +113,54 @@ function getDimensionDisplayName(dimension) {
 
 // 创建老虎机轮盘
 function createSlotReel(dimension, keywords) {
-    const reelContainer = document.createElement('div');
-    reelContainer.className = 'slot-reel';
+    const container = document.createElement('div');
+    container.className = 'slot-reel';
     
-    const dimensionLabel = document.createElement('div');
-    dimensionLabel.className = 'dimension-label';
-    dimensionLabel.textContent = getDimensionDisplayName(dimension);
+    const label = document.createElement('div');
+    label.className = 'dimension-label';
+    label.textContent = getDimensionDisplayName(dimension);
+    container.appendChild(label);
     
     const slotItem = document.createElement('div');
     slotItem.className = 'slot-item';
-    slotItem.innerHTML = '<span>❓</span>';
-    
-    reelContainer.appendChild(dimensionLabel);
-    reelContainer.appendChild(slotItem);
+    slotItem.innerHTML = '<span>?</span>';
+    container.appendChild(slotItem);
     
     return {
+        container,
         element: slotItem,
-        container: reelContainer,
-        dimension: dimension,
-        keywords: keywords,
-        finalValue: null
+        dimension: dimension
     };
 }
 
 // 初始化老虎机
 function initializeSlotMachine(keepQuestionMarks = false) {
-    slotMachine.innerHTML = '';
-    currentSlots = [];
+    if (!slotMachine) return;
     
     const dimensions = getCurrentDimensions();
-    dimensions.forEach(dimension => {
-        const keywords = getKeywords(currentPackType, dimension);
-        const slot = createSlotReel(dimension, keywords);
-        slotMachine.appendChild(slot.container);
-        currentSlots.push(slot);
+    if (!dimensions) return;
+    
+    // 如果不是保持问号状态，才需要重新生成内容
+    if (!keepQuestionMarks) {
+        slotMachine.innerHTML = '';
+        currentSlots = [];
         
-        // 如果需要保持问号状态
-        if (keepQuestionMarks) {
-            slot.element.innerHTML = '<span>❓</span>';
-        }
-    });
+        dimensions.forEach(dimension => {
+            const keywords = getKeywords(currentPackType, dimension);
+            const reel = createSlotReel(dimension, keywords);
+            currentSlots.push(reel);
+            slotMachine.appendChild(reel.container);
+        });
+    }
+    
+    // 确保 currentSlots 正确初始化
+    if (!currentSlots || !currentSlots.length) {
+        currentSlots = Array.from(document.querySelectorAll('.slot-reel')).map((element, index) => ({
+            element: element.querySelector('.slot-item'),
+            dimension: dimensions[index],
+            container: element
+        }));
+    }
 }
 
 // 生成随机延迟时间
@@ -166,7 +182,6 @@ function showLoadingState() {
         <div class="loading-animation">
             <div class="loading-icon">🎨</div>
             <div class="loading-text">正在绘制角色...</div>
-            <div class="loading-subtext"> </div>
         </div>
     `;
 }
@@ -184,14 +199,7 @@ function formatDescription(text) {
 
 // 显示成功状态
 async function showSuccess(result) {
-    // 先隐藏占位符
-    cardPlaceholder.classList.add('hidden');
-    await new Promise(resolve => setTimeout(resolve, 300));
-    cardPlaceholder.style.display = 'none';
-    
-    // 显示图片和文字
-    generatedImage.classList.add('hidden');
-    cardText.classList.add('hidden');
+    if (!result) return;
     
     // 设置图片源并等待加载完成
     await new Promise((resolve) => {
@@ -199,15 +207,26 @@ async function showSuccess(result) {
         generatedImage.src = result.imageUrl;
     });
     
+    // 准备新的内容
     cardText.innerHTML = result.description;
     generatedImage.style.display = 'block';
-    cardText.style.display = 'block';
+    cardText.style.display = result.description ? 'block' : 'none';
     
-    // 触发重排后显示
-    setTimeout(() => {
-        generatedImage.classList.remove('hidden');
+    // 先添加隐藏类
+    generatedImage.classList.add('hidden');
+    cardText.classList.add('hidden');
+    
+    // 平滑切换状态
+    cardPlaceholder.classList.add('hidden');
+    // 等待淡出动画完成
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // 隐藏占位符并显示新内容
+    cardPlaceholder.style.display = 'none';
+    generatedImage.classList.remove('hidden');
+    if (result.description) {
         cardText.classList.remove('hidden');
-    }, 50);
+    }
     
     generateButton.textContent = '重新抽取';
     generateButton.disabled = false;
@@ -215,12 +234,20 @@ async function showSuccess(result) {
 
 // 显示错误状态
 function showError(error) {
+    // 隐藏其他状态
+    cardLoading.style.display = 'none';
     cardPlaceholder.style.display = 'none';
+    cardText.style.display = 'none';
+    generatedImage.style.display = 'none';
+    
+    // 显示错误信息
+    cardError.style.display = 'block';
     cardError.innerHTML = `
         <div class="error-icon">⚠️</div>
         <div class="error-message">${error.message || '生成失败'}</div>
     `;
-    cardError.style.display = 'block';
+    
+    // 更新按钮状态
     generateButton.textContent = '重新抽取';
     generateButton.disabled = false;
 }
@@ -264,20 +291,15 @@ async function playSlotAnimation(slot, finalValue) {
 
 // 播放所有轮盘的动画
 async function playSpinningAnimation(finalKeywords) {
-    // 重置显示状态
-    cardText.style.display = 'none';
-    cardError.style.display = 'none';
-    generatedImage.style.display = 'none';
-    cardPlaceholder.classList.add('hidden');
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    cardPlaceholder.style.display = 'flex';
-    cardPlaceholder.innerHTML = `
-        <div class="card-placeholder-icon">🎲</div>
-        <div>正在抽取角色词条...</div>
-    `;
-    cardPlaceholder.classList.remove('hidden');
-    
+    if (!currentSlots || !currentSlots.length) {
+        // 如果老虎机还没有初始化，先初始化
+        initializeSlotMachine(true);
+        currentSlots = Array.from(document.querySelectorAll('.slot-reel')).map((element, index) => ({
+            element: element.querySelector('.slot-item'),
+            dimension: getCurrentDimensions()[index]
+        }));
+    }
+
     // 立即重置除第一个维度外的所有维度为问号
     for (let i = 1; i < currentSlots.length; i++) {
         resetSlot(currentSlots[i]);
@@ -300,7 +322,7 @@ async function playSpinningAnimation(finalKeywords) {
 // 重置单个轮盘到初始状态
 function resetSlot(slot) {
     slot.element.classList.remove('spinning', 'selected');
-    slot.element.innerHTML = '<span>❓</span>';
+    slot.element.innerHTML = '<span>?</span>';
     slot.finalValue = null;
 }
 
@@ -466,21 +488,17 @@ function displayImage(imageUrl) {
 
 // 重置角色卡片到初始状态
 async function resetCharacterCard() {
-    // 先隐藏现有内容
-    if (cardText.style.display !== 'none') cardText.classList.add('hidden');
-    if (cardError.style.display !== 'none') cardError.classList.add('hidden');
-    if (generatedImage.style.display !== 'none') generatedImage.classList.add('hidden');
-    
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    // 隐藏所有元素
+    // 立即隐藏所有元素，不使用动画
     cardText.style.display = 'none';
     cardError.style.display = 'none';
     generatedImage.style.display = 'none';
+    cardText.classList.remove('hidden');
+    cardError.classList.remove('hidden');
+    generatedImage.classList.remove('hidden');
     
-    // 准备显示占位符
-    cardPlaceholder.classList.add('hidden');
+    // 直接显示占位符，不使用动画
     cardPlaceholder.style.display = 'flex';
+    cardPlaceholder.classList.remove('hidden');
     cardPlaceholder.innerHTML = `
         <div class="card-placeholder-icon">🎴</div>
         <div class="card-placeholder-content">
@@ -488,11 +506,6 @@ async function resetCharacterCard() {
             <div class="start-subhint"> </div>
         </div>
     `;
-    
-    // 触发重排后显示
-    setTimeout(() => {
-        cardPlaceholder.classList.remove('hidden');
-    }, 50);
 }
 
 // 开始抽取流程
@@ -501,17 +514,32 @@ async function startSpinning() {
     isSpinning = true;
     
     try {
-        // 1. 生成最终关键词
+        // 1. 确保老虎机已初始化
+        if (!currentSlots || !currentSlots.length) {
+            initializeSlotMachine(true);
+        }
+        
+        // 2. 如果当前有显示的角色卡，先淡出
+        if (generatedImage.style.display === 'block') {
+            generatedImage.classList.add('hidden');
+            cardText.classList.add('hidden');
+            await new Promise(resolve => setTimeout(resolve, 300));
+            generatedImage.style.display = 'none';
+            cardText.style.display = 'none';
+        }
+        
+        // 3. 显示抽取提示
+        cardPlaceholder.style.display = 'flex';
+        cardPlaceholder.innerHTML = `
+            <div class="card-placeholder-icon">🎲</div>
+            <div class="card-placeholder-content">
+                <div class="start-hint">正在抽取词条...</div>
+            </div>
+        `;
+        cardPlaceholder.classList.remove('hidden');
+        
+        // 4. 生成最终关键词并立即开始API调用
         const finalKeywords = generateFinalKeywords();
-        
-        // 2. 更新按钮状态
-        generateButton.textContent = '抽取中...';
-        generateButton.disabled = true;
-        
-        // 3. 播放动画
-        const animationPromise = playSpinningAnimation(finalKeywords);
-        
-        // 4. 启动API调用（带超时和重试）
         const apiPromise = Promise.race([
             generateCharacter(finalKeywords),
             new Promise((_, reject) => 
@@ -519,23 +547,41 @@ async function startSpinning() {
             )
         ]);
         
+        // 5. 更新按钮状态
+        generateButton.textContent = '抽取中...';
+        generateButton.disabled = true;
+        
+        // 6. 播放动画（动画和API调用并行进行）
+        const animationPromise = playSpinningAnimation(finalKeywords);
+        
+        // 7. 等待动画完成
         await animationPromise;
         
-        // 5. 显示加载动画
+        // 8. 显示加载动画
         showLoadingState();
         
-        // 6. 等待API结果
+        // 9. 等待API结果
         const result = await apiPromise;
-        showSuccess(result);
         
-        // 记录生成成功
+        // 10. 显示结果
+        await showSuccess(result);
+        
+        // 11. 记录成功
         trackEvent('生成', '成功', getCurrentTab(), 1);
         trackEvent('卡包使用', '生成成功', getCurrentTab(), 1);
+        
+        // 12. 添加到历史记录
+        addToHistory({
+            timestamp: new Date().toISOString(),
+            keywords: finalKeywords,
+            imageUrl: result.imageUrl,
+            greeting: result.description
+        });
     } catch (error) {
         generateButton.classList.add('error');
         showError(error);
         
-        // 记录生成失败
+        // 记录失败
         trackEvent('生成', '失败', `${getCurrentTab()} - ${error.message}`, 1);
         trackEvent('卡包使用', '生成失败', getCurrentTab(), 1);
     } finally {
@@ -593,22 +639,260 @@ function initUserSession() {
     }
 }
 
-// 初始化事件监听
-generateButton.addEventListener('click', async () => {
-    if (generateButton.disabled) return;
+// 历史记录展开/收起
+function initializeHistory() {
+    const toggleButton = document.getElementById('history-toggle');
+    const historyContainer = document.getElementById('history-container');
     
-    // 记录开始生成
-    trackEvent('生成', '点击', getCurrentTab(), 1);
-    trackEvent('卡包使用', '生成点击', getCurrentTab(), 1);
+    if (!toggleButton || !historyContainer) return;
+
+    // 确保history-grid存在
+    let historyGrid = document.getElementById('history-grid');
+    if (!historyGrid) {
+        historyGrid = document.createElement('div');
+        historyGrid.id = 'history-grid';
+        historyGrid.className = 'history-grid';
+        historyContainer.appendChild(historyGrid);
+    }
+
+    // 设置初始状态
+    let isExpanded = false;
+    toggleButton.textContent = `历史记录 ▲`;
+
+    toggleButton.addEventListener('click', async () => {
+        isExpanded = !isExpanded;
+        toggleButton.textContent = `历史记录 ${isExpanded ? '▼' : '▲'}`;
+        
+        if (isExpanded) {
+            // 1. 先加载内容但保持不可见
+            await updateHistoryDisplay();
+            
+            // 2. 展开容器
+            historyContainer.classList.add('expanded');
+            
+            // 3. 等待一小段时间确保展开动画开始
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // 4. 显示内容
+            const grid = document.getElementById('history-grid');
+            grid.classList.add('visible');
+        } else {
+            // 收起时反向操作
+            const grid = document.getElementById('history-grid');
+            grid.classList.remove('visible');
+            // 等待透明度动画完成
+            await new Promise(resolve => setTimeout(resolve, 300));
+            historyContainer.classList.remove('expanded');
+        }
+    });
+}
+
+// 更新历史记录显示
+async function updateHistoryDisplay() {
+    const history = loadHistory();
+    const historySection = document.querySelector('.history-section');
+    const historyGrid = document.querySelector('.history-grid');
     
-    startSpinning();
+    if (!historyGrid) return;
+    
+    historyGrid.innerHTML = '';
+    
+    history.forEach(record => {
+        historyGrid.appendChild(createHistoryCard(record));
+    });
+
+    // 添加提示文本
+    if (history.length > 0) {
+        const hint = document.createElement('div');
+        hint.className = 'history-hint';
+        hint.textContent = '为保证浏览体验，仅展示最近30个角色';
+        hint.style.cssText = 'color: rgba(255,255,255,0.4); font-size: 13px; text-align: center; padding: 16px 0 8px 0; width: 100%;';
+        historyGrid.appendChild(hint);
+    }
+
+    layoutMasonry();
+}
+
+// 瀑布流布局
+function layoutMasonry() {
+    const grid = document.getElementById('history-grid');
+    const items = Array.from(grid.children);
+    const columnCount = 2;
+    const columnHeights = new Array(columnCount).fill(0);
+    const gridWidth = grid.offsetWidth;
+    const columnWidth = (gridWidth - COLUMN_GAP) / 2;
+
+    // 按照从左到右、从上到下的顺序排列
+    items.forEach((item, index) => {
+        const columnIndex = index % columnCount; // 0 或 1，决定是左列还是右列
+        const xPos = columnIndex * (columnWidth + COLUMN_GAP);
+        const yPos = columnHeights[columnIndex];
+
+        item.style.transform = `translate(${xPos}px, ${yPos}px)`;
+        columnHeights[columnIndex] += item.offsetHeight + ROW_GAP;
+    });
+
+    // 设置grid容器高度为最高的列的高度
+    grid.style.height = Math.max(...columnHeights) + 'px';
+}
+
+// 历史记录管理
+const HISTORY_KEY = 'character_history';
+const MAX_HISTORY = 30;
+const COLUMN_GAP = 16; // 列间距
+const ROW_GAP = 20;    // 行间距
+
+function loadHistory() {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+}
+
+function saveHistory(history) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+function addToHistory(record) {
+    const history = loadHistory();
+    history.unshift(record); // 添加到开头
+    if (history.length > MAX_HISTORY) {
+        history.pop(); // 移除最旧的记录
+    }
+    saveHistory(history);
+    updateHistoryDisplay();
+}
+
+// 创建历史记录卡片
+function createHistoryCard(record) {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+
+    const info = document.createElement('div');
+    info.className = 'history-info';
+
+    const date = document.createElement('div');
+    date.className = 'history-date';
+    date.textContent = formatDate(record.timestamp);
+
+    const card = document.createElement('div');
+    card.className = 'character-card history-card';
+
+    const img = document.createElement('img');
+    img.src = record.imageUrl;
+    img.alt = '历史角色卡';
+    img.loading = 'lazy';
+    
+    img.onload = () => {
+        layoutMasonry();
+    };
+
+    const description = document.createElement('p');
+    description.className = 'character-description';
+    
+    // 在历史记录列表中隐藏括号内容，并移除HTML标签
+    const greeting = record.greeting
+        .replace(/<[^>]*>/g, '') // 移除所有HTML标签
+        .replace(/[（(]([^）)]*)[）)]/g, ''); // 移除括号内容
+    description.textContent = greeting;
+
+    info.appendChild(date);
+    card.appendChild(img);
+    card.appendChild(description);
+    item.appendChild(info);
+    item.appendChild(card);
+
+    card.addEventListener('click', (e) => {
+        e.stopPropagation(); // 阻止事件冒泡
+        showModal(record);
+    });
+
+    return item;
+}
+
+// 显示模态框时显示完整的开场白
+function showModal(record) {
+    const modal = document.getElementById('modal');
+    const modalKeywords = document.getElementById('modal-keywords');
+    const modalImage = document.getElementById('modal-image');
+    const modalDescription = document.getElementById('modal-description');
+    
+    // 清空并添加关键词
+    modalKeywords.innerHTML = '';
+    record.keywords.forEach((keyword, index) => {
+        const tag = document.createElement('span');
+        tag.className = 'keyword-tag';
+        tag.textContent = keyword;
+        modalKeywords.appendChild(tag);
+    });
+    
+    modalImage.src = record.imageUrl;
+    
+    // 在模态框中显示完整文本，并保持颜色一致
+    modalDescription.innerHTML = record.greeting.replace(/[（(]([^）)]*)[）)]/g, (match, content) => {
+        return `<span class="action">（${content}）</span>`;
+    });
+    
+    // 显示模态框
+    requestAnimationFrame(() => {
+        modal.classList.add('show');
+    });
+
+    // 点击任意位置关闭
+    const closeModal = (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('show');
+            modal.removeEventListener('click', closeModal);
+        }
+    };
+    
+    // 移除之前可能存在的事件监听器
+    modal.removeEventListener('click', closeModal);
+    // 添加新的事件监听器
+    modal.addEventListener('click', closeModal);
+}
+
+// 日期格式化函数
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${month}-${day} ${hours}:${minutes}`;
+    } catch (error) {
+        console.error('日期格式化失败:', error);
+        return dateString;
+    }
+}
+
+// 监听窗口大小变化，重新布局
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(layoutMasonry, 100);
 });
 
-// 页面加载完成后初始化
+// 页面加载完成后的初始化
 document.addEventListener('DOMContentLoaded', () => {
-    initUserSession();  // 初始化用户会话
+    // 初始化用户会话
+    initUserSession();
+    
+    // 初始化标签页
     initializeTabs();
+    
+    // 初始化老虎机（显示问号）
+    initializeSlotMachine(true);
+    
+    // 初始化维度显示
     updateDimensionDisplay();
-    initializeSlotMachine();  // 添加这行，确保初始化老虎机
+    
+    // 初始化历史记录
+    initializeHistory();
+    
+    // 初始化生成按钮
+    if (generateButton) {
+        generateButton.addEventListener('click', startSpinning);
+    }
+    
+    // 重置角色卡片到初始状态
     resetCharacterCard();
 });

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>角色抽卡器 v1.4.0</title>
+    <title>角色抽卡器 v1.5.0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -28,22 +28,37 @@
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
         }
 
-        body {
+        *::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
+        html {
             background-color: var(--background);
-            color: var(--text);
-            min-height: 100vh;
-            padding: 40px 0;
+            min-height: 100%;
             background-image: 
                 radial-gradient(circle at 20% 20%, rgba(127, 90, 240, 0.15) 0%, transparent 40%),
                 radial-gradient(circle at 80% 80%, rgba(127, 90, 240, 0.15) 0%, transparent 40%);
+            background-attachment: fixed;
+            overflow-y: scroll; /* 始终显示滚动区域 */
+            width: 100vw; /* 防止页面宽度变化 */
+        }
+
+        body {
+            color: var(--text);
+            padding: 40px 0;
+            min-height: 100vh;
+            overflow-x: hidden; /* 防止水平滚动 */
+            width: 100%; /* 继承html的宽度 */
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0;
+            width: 100%;
         }
 
         h1 {
@@ -137,7 +152,6 @@
         }
 
         .slot-reel:hover {
-            transform: translateY(-5px);
             border-color: var(--primary-color);
         }
 
@@ -155,7 +169,7 @@
             white-space: normal;
             overflow: hidden;
             text-overflow: ellipsis;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             border: 1px solid var(--glass-border);
             text-align: center;
             line-height: 1.2;
@@ -221,7 +235,6 @@
 
         .generate-button:hover:not(:disabled) {
             background-color: #3e8e41;  
-            transform: translateY(-2px);
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
         }
 
@@ -252,7 +265,7 @@
         }
 
         .result-container {
-            margin-top: 2px;
+            margin-top: 24px;
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -293,24 +306,34 @@
             height: 100%;
             object-fit: cover;
             border-radius: 12px 12px 0 0;
-            transition: all 0.5s ease;
+            opacity: 1;
+            transition: opacity 0.3s ease;
         }
         
         .generated-image.hidden {
             opacity: 0;
-            transform: scale(0.95);
         }
 
         .card-placeholder {
+            display: flex; 
             height: 100%;
             width: 100%;
-            display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 20px;
             border-radius: 12px;
             gap: 16px;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: none;
+        }
+        
+        .card-placeholder.hidden {
+            opacity: 0;
         }
         
         .card-placeholder-content {
@@ -334,16 +357,35 @@
             flex-direction: column;
             align-items: center;
             gap: 16px;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-icon {
+            font-size: 48px;
+            text-align: center;
+            width: 100%;
+            height: 48px;
+            line-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading-animation .loading-icon {
+            animation: breathe 1.5s infinite;
         }
 
         .loading-text {
             font-size: 16px;
             color: var(--text);
+            transition: opacity 0.3s ease;
         }
 
         .loading-subtext {
             font-size: 14px;
             color: var(--text-secondary);
+            transition: opacity 0.3s ease;
         }
 
         .start-hint {
@@ -361,16 +403,27 @@
             background: var(--surface);
             color: var(--text);
             padding: 20px;
-            border-radius:  0 0 12px 12px;
+            border-radius: 0 0 12px 12px;
             font-size: 16px;
             line-height: 1.6;
             text-align: left;
             white-space: pre-wrap;
+            display: none;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .card-text.hidden {
+            opacity: 0;
         }
 
         .card-text .action {
             color: var(--text-secondary);
             display: inline;
+        }
+
+        .action {
+            color: rgba(255, 255, 255, 0.6);
         }
 
         .card-loading {
@@ -390,8 +443,8 @@
             backdrop-filter: blur(4px);
         }
 
-        .loading-icon {
-            animation: breathe 1.5s ease-in-out infinite;
+        .card-loading .loading-icon {
+            animation: breathe 1.5s infinite;
         }
 
         @keyframes breathe {
@@ -403,11 +456,6 @@
                 transform: scale(1.1);
                 opacity: 1;
             }
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
         }
 
         .card-error {
@@ -442,7 +490,6 @@
         }
 
         .slot.selected {
-            transform: scale(1.05);
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
         }
 
@@ -481,6 +528,272 @@
                 padding: 10px;
             }
         }
+
+        /* 历史记录样式 */
+        .history-section {
+            width: 92vw;
+            max-width: 650px;
+            margin: 20px auto;
+            padding: 0 16px;
+            box-sizing: border-box;
+        }
+
+        .history-toggle {
+            width: 100%;
+            padding: 12px 20px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 0;
+            font-size: 16px;
+            color: #fff;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-toggle:hover {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-toggle:active {
+            transform: translateY(0);
+        }
+
+        .history-container {
+            height: 0;
+            overflow: hidden;
+            transition: height 0.3s ease-out;
+        }
+
+        .history-container.expanded {
+            height: auto;
+            padding: 16px 0;
+        }
+
+        .history-grid {
+            position: relative;
+            width: 100%;
+            margin: 0 auto;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .history-grid.visible {
+            opacity: 1;
+        }
+
+        .history-item {
+            position: absolute;
+            width: calc(50% - 8px);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none; /* 在完全显示前禁用交互 */
+        }
+
+        .history-grid.visible .history-item {
+            pointer-events: auto;
+        }
+
+        .history-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 0 2px;
+        }
+
+        .history-date {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .history-date::before {
+            content: '•';
+            color: currentColor;
+        }
+
+        .history-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .keyword-tag {
+            background: rgba(127, 90, 240, 0.15);
+            border: 1px solid rgba(127, 90, 240, 0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.9);
+            white-space: nowrap;
+        }
+
+        /* 历史记录中的角色卡样式 */
+        .history-card {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        .history-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .history-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px 8px 0 0;
+            transition: inherit;
+        }
+
+        .history-card .character-description {
+            font-size: 12px;
+            line-height: 1.5;
+            padding: 12px;
+            color: rgba(255, 255, 255, 0.95);
+            background: var(--glass-bg);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-top: 1px solid var(--glass-border);
+            border-radius: 0 0 8px 8px;
+            transition: inherit;
+        }
+
+        .history-card .character-description span {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        /* 响应式布局优化 */
+        @media screen and (max-width: 768px) {
+            .history-section {
+                width: 96vw;
+                margin: 16px auto;
+            }
+
+            .history-grid {
+                gap: 20px 12px; /* 移动端稍微减小间距 */
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .history-toggle {
+                padding: 10px 16px;
+                font-size: 15px;
+            }
+
+            .history-grid {
+                gap: 20px 12px; /* 移动端稍微减小间距 */
+            }
+
+            .history-item {
+                width: calc(50% - 6px); /* 移动端减小间距 */
+            }
+        }
+        /* 模态框样式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: pointer;
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+
+        .modal.show {
+            visibility: visible;
+            opacity: 1;
+            background-color: rgba(0, 0, 0, 0.85);
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 32px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            cursor: default;
+        }
+
+        .modal.show .modal-content {
+            opacity: 1;
+        }
+
+        .modal-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 24px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal.show .modal-keywords {
+            opacity: 0.85;
+        }
+
+        .modal .keyword-tag {
+            color: #fff;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+
+        /* 角色卡样式 */
+        .modal .character-card {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: min(500px, 90vw);
+        }
+
+        .modal .character-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .modal .character-card .character-description {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+            margin: 0;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        .modal .character-card .character-description span {
+            color: rgba(255, 255, 255, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -493,28 +806,64 @@
             <button class="tab-button warrior">战士卡包</button>
         </div>
         <div id="slotMachine" class="slot-machine">
-            <!-- 老虎机内容将由 JavaScript 动态生成 -->
+            <div class="slot-reel">
+                <div class="dimension-label">身材</div>
+                <div class="slot-item"><span>?</span></div>
+            </div>
+            <div class="slot-reel">
+                <div class="dimension-label">穿搭</div>
+                <div class="slot-item"><span>?</span></div>
+            </div>
+            <div class="slot-reel">
+                <div class="dimension-label">氛围</div>
+                <div class="slot-item"><span>?</span></div>
+            </div>
+            <div class="slot-reel">
+                <div class="dimension-label">身份</div>
+                <div class="slot-item"><span>?</span></div>
+            </div>
         </div>
         <button id="generateButton" class="generate-button">开始抽取</button>
         <div class="result-container">
             <div id="response"></div>
-            <div class="loading"></div>
             <div class="character-card">
                 <div class="card-image-container">
-                    <img class="generated-image" alt="生成的角色图片">
-                    <div class="card-placeholder">
+                    <img class="generated-image hidden" alt="" style="display: none;">
+                    <div class="card-placeholder" style="display: flex;">
                         <div class="card-placeholder-icon">🎴</div>
-                        <div class="card-placeholder-content">点击抽取按钮开始生成角色卡片</div>
+                        <div class="card-placeholder-content">
+                            <div class="start-hint">请先抽取角色词条</div>
+                            <div class="start-subhint"> </div>
+                        </div>
                     </div>
-                    <div class="card-loading">
+                    <div class="card-loading" style="display: none;">
                         <div class="loading-icon">🔄</div>
                         <div class="loading-text">正在生成角色卡片...</div>
                     </div>
-                    <div class="card-error"></div>
+                    <div class="card-error" style="display: none;"></div>
                 </div>
-                <div class="card-text"></div>
+                <div class="card-text" style="display: none;"></div>
             </div>
             <div class="error-message"></div>
+        </div>
+        <div class="history-section">
+            <button id="history-toggle" class="history-toggle">
+                历史记录 ▲
+            </button>
+            <div id="history-container" class="history-container">
+                <div id="history-grid" class="history-grid">
+                    <!-- 历史记录将通过JavaScript动态添加 -->
+                </div>
+            </div>
+        </div>
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <div id="modal-keywords" class="modal-keywords"></div>
+                <div class="character-card">
+                    <img id="modal-image" alt="角色图片">
+                    <p id="modal-description" class="character-description"></p>
+                </div>
+            </div>
         </div>
     </div>
     <script type="module" src="main.js"></script>
