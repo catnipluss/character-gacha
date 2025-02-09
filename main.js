@@ -216,7 +216,6 @@ function showError(error) {
     cardError.innerHTML = `
         <div class="error-icon">⚠️</div>
         <div class="error-message">${error.message || '生成失败'}</div>
-        <div class="error-suggestion">生图服务不太稳定</div>
     `;
     cardError.style.display = 'block';
     generateButton.textContent = '重新抽取';
@@ -422,7 +421,7 @@ async function generateCharacter(keywords) {
 
     // 如果整个响应结束后还是没有图片，显示错误
     if (!hasImage || !finalResult || !finalResult.imageUrl) {
-        throw new Error('图片生成失败，请重新生成');
+        throw new Error('偶尔绘制失败，可以重新抽取');
     }
 
     return finalResult;
