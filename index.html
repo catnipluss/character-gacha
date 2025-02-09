@@ -34,7 +34,7 @@
             background-color: var(--background);
             color: var(--text);
             min-height: 100vh;
-            padding: 40px 20px;
+            padding: 40px 0;
             background-image: 
                 radial-gradient(circle at 20% 20%, rgba(127, 90, 240, 0.15) 0%, transparent 40%),
                 radial-gradient(circle at 80% 80%, rgba(127, 90, 240, 0.15) 0%, transparent 40%);
@@ -43,7 +43,7 @@
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0;
         }
 
         h1 {
@@ -58,12 +58,12 @@
 
         .tab-container {
             display: flex;
-            gap: 12px;
+            gap: clamp(4px, 1.2vw, 12px);
             margin-bottom: 24px;
             justify-content: center;
-            flex-wrap: nowrap;  
-            width: 100%;
-            max-width: 500px;  
+            flex-wrap: wrap;  
+            width: 92vw;
+            max-width: 650px;  
             margin-left: auto;
             margin-right: auto;
         }
@@ -71,16 +71,16 @@
         .tab-button {
             background: rgba(255, 255, 255, 0.1);
             border: none;
-            padding: 8px 16px;
+            padding: 8px clamp(6px, 1.5vw, 16px);
             color: var(--text);
             cursor: pointer;
             border-radius: 20px;
             transition: all 0.3s ease;
-            font-size: 14px;
+            font-size: clamp(12px, 3vw, 14px);
             opacity: 0.8;
             flex: 1;  
-            white-space: nowrap;  
-            min-width: 80px;
+            min-width: 0;
+            max-width: clamp(60px, 20vw, 110px);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -117,11 +117,11 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             justify-content: center;
-            gap: clamp(10px, 2vw, 20px);
+            gap: clamp(8px, 1.5vw, 16px);
             margin: 20px auto 40px;
-            width: 100%;
-            max-width: clamp(360px, 80vw, 700px);
-            padding: 0 clamp(10px, 2vw, 20px);
+            width: 92vw;
+            max-width: 500px;
+            padding: 0;
         }
 
         .slot-reel {
@@ -129,7 +129,7 @@
             backdrop-filter: blur(10px);
             border: 1px solid var(--glass-border);
             border-radius: clamp(12px, 1.5vw, 16px);
-            padding: clamp(12px, 2vw, 20px);
+            padding: clamp(6px, 1.2vw, 14px);
             display: flex;
             flex-direction: column;
             gap: clamp(8px, 1vw, 12px);
@@ -261,11 +261,11 @@
         }
 
         .character-card {
-            width: 95vw;
+            width: 92vw;
             max-width: 650px;
             background: rgba(30, 30, 40, 0.7);
             border-radius: 16px;
-            padding: 16px;
+            padding: clamp(8px, 1.5vw, 16px);
             margin: 0 auto;
             display: flex;
             flex-direction: column;
@@ -431,9 +431,9 @@
             opacity: 0;
         }
 
-        @media screen and (max-width: 768px) {
+        @media screen and (max-width: 932px) {
             .character-card {
-                max-width: min(360px, 95vw);
+                max-width: min(500px, 92vw);
                 padding: 12px;
             }
 
