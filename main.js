@@ -575,7 +575,8 @@ async function startSpinning() {
             timestamp: new Date().toISOString(),
             keywords: finalKeywords,
             imageUrl: result.imageUrl,
-            greeting: result.description
+            greeting: result.description,
+            type: currentPackType  // 添加卡包类型
         });
     } catch (error) {
         generateButton.classList.add('error');
@@ -662,6 +663,9 @@ function initializeHistory() {
     toggleButton.addEventListener('click', async () => {
         isExpanded = !isExpanded;
         toggleButton.textContent = `历史记录 ${isExpanded ? '▼' : '▲'}`;
+        
+        // 添加历史记录展开/收起埋点
+        trackEvent('历史记录', isExpanded ? '展开' : '收起', '', 1);
         
         if (isExpanded) {
             // 1. 先加载内容但保持不可见
@@ -753,10 +757,17 @@ function saveHistory(history) {
 function addToHistory(record) {
     const history = loadHistory();
     history.unshift(record); // 添加到开头
+    
+    // 如果超过最大记录数，删除最旧的记录
     if (history.length > MAX_HISTORY) {
-        history.pop(); // 移除最旧的记录
+        history.splice(MAX_HISTORY);
     }
+    
     saveHistory(history);
+    
+    // 添加历史记录保存埋点
+    trackEvent('历史记录', '保存记录', `${record.type}卡包`, 1);
+    
     updateHistoryDisplay();
 }
 
@@ -799,8 +810,9 @@ function createHistoryCard(record) {
     item.appendChild(info);
     item.appendChild(card);
 
-    card.addEventListener('click', (e) => {
-        e.stopPropagation(); // 阻止事件冒泡
+    // 添加点击事件和埋点
+    card.addEventListener('click', () => {
+        trackEvent('历史记录', '查看详情', `${record.type}卡包`, 1);
         showModal(record);
     });
 
@@ -840,6 +852,8 @@ function showModal(record) {
         if (e.target === modal) {
             modal.classList.remove('show');
             modal.removeEventListener('click', closeModal);
+            // 添加模态框关闭埋点
+            trackEvent('历史记录', '关闭详情', '', 1);
         }
     };
     
@@ -887,6 +901,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初始化历史记录
     initializeHistory();
+    
+    // 添加历史记录初始化埋点
+    const history = loadHistory();
+    if (history && history.length > 0) {
+        trackEvent('历史记录', '初始化', `记录数:${history.length}`, history.length);
+    }
     
     // 初始化生成按钮
     if (generateButton) {
