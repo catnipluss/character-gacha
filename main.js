@@ -54,7 +54,7 @@ function initializeTabs() {
             initializeSlotMachine(true);
             
             // 记录切换卡包行为
-            trackEvent('卡包', '切换', button.textContent);
+            trackEvent('卡包', '切换', button.textContent, 1);
         });
     });
 }
@@ -529,24 +529,27 @@ async function startSpinning() {
         showSuccess(result);
         
         // 记录生成成功
-        trackEvent('生成', '成功', getCurrentTab());
+        trackEvent('生成', '成功', getCurrentTab(), 1);
+        trackEvent('卡包使用', '生成成功', getCurrentTab(), 1);
     } catch (error) {
         generateButton.classList.add('error');
         showError(error);
         
         // 记录生成失败
-        trackEvent('生成', '失败', error.message);
+        trackEvent('生成', '失败', `${getCurrentTab()} - ${error.message}`, 1);
+        trackEvent('卡包使用', '生成失败', getCurrentTab(), 1);
     } finally {
         cleanup();
     }
 }
 
 // 统计用户行为的函数
-function trackEvent(category, action, label = '') {
+function trackEvent(category, action, label = '', value = 0) {
     if (window.gtag) {
         gtag('event', action, {
             'event_category': category,
-            'event_label': label
+            'event_label': label,
+            'value': value
         });
     }
 }
@@ -562,7 +565,8 @@ generateButton.addEventListener('click', async () => {
     if (generateButton.disabled) return;
     
     // 记录开始生成
-    trackEvent('生成', '点击', getCurrentTab());
+    trackEvent('生成', '点击', getCurrentTab(), 1);
+    trackEvent('卡包使用', '生成点击', getCurrentTab(), 1);
     
     startSpinning();
 });
