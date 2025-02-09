@@ -549,7 +549,8 @@ function trackEvent(category, action, label = '', value = 0) {
         gtag('event', action, {
             'event_category': category,
             'event_label': label,
-            'value': value
+            'value': value,
+            'user_id': getUserId()  // 添加用户ID到每个事件中
         });
     }
 }
@@ -558,6 +559,38 @@ function trackEvent(category, action, label = '', value = 0) {
 function getCurrentTab() {
     const activeTab = document.querySelector('.tab-button.active');
     return activeTab ? activeTab.textContent : '';
+}
+
+// 生成或获取用户ID
+function getUserId() {
+    let userId = localStorage.getItem('user_id');
+    if (!userId) {
+        // 生成一个随机的用户ID
+        userId = 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('user_id', userId);
+    }
+    return userId;
+}
+
+// 初始化用户会话
+function initUserSession() {
+    const userId = getUserId();
+    if (window.gtag) {
+        // 设置用户ID
+        gtag('set', 'user_id', userId);
+        // 设置用户属性
+        gtag('set', 'user_properties', {
+            user_id: userId,
+            first_visit_date: localStorage.getItem('first_visit_date') || new Date().toISOString(),
+            visit_count: parseInt(localStorage.getItem('visit_count') || '0') + 1
+        });
+        // 记录访问次数
+        localStorage.setItem('visit_count', parseInt(localStorage.getItem('visit_count') || '0') + 1);
+        // 记录首次访问时间
+        if (!localStorage.getItem('first_visit_date')) {
+            localStorage.setItem('first_visit_date', new Date().toISOString());
+        }
+    }
 }
 
 // 初始化事件监听
@@ -573,6 +606,7 @@ generateButton.addEventListener('click', async () => {
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
+    initUserSession();  // 初始化用户会话
     initializeTabs();
     updateDimensionDisplay();
     initializeSlotMachine();  // 添加这行，确保初始化老虎机
