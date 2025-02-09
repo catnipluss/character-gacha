@@ -24,6 +24,10 @@
             padding: 0;
             box-sizing: border-box;
             font-family: 'Noto Sans SC', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         body {
@@ -76,7 +80,11 @@
             opacity: 0.8;
             flex: 1;  
             white-space: nowrap;  
-            min-width: 80px;  
+            min-width: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
         }
 
         .tab-button:hover {
@@ -253,8 +261,8 @@
         }
 
         .character-card {
-            width: 100%;
-            max-width: min(360px, 95vw);
+            width: 95vw;
+            max-width: 650px;
             background: rgba(30, 30, 40, 0.7);
             border-radius: 16px;
             padding: 16px;
