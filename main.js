@@ -52,6 +52,9 @@ function initializeTabs() {
             updateDimensionDisplay();
             // 重新初始化老虎机，但保持问号状态
             initializeSlotMachine(true);
+            
+            // 记录切换卡包行为
+            trackEvent('卡包', '切换', button.textContent);
         });
     });
 }
@@ -524,16 +527,45 @@ async function startSpinning() {
         // 6. 等待API结果
         const result = await apiPromise;
         showSuccess(result);
+        
+        // 记录生成成功
+        trackEvent('生成', '成功', getCurrentTab());
     } catch (error) {
         generateButton.classList.add('error');
         showError(error);
+        
+        // 记录生成失败
+        trackEvent('生成', '失败', error.message);
     } finally {
         cleanup();
     }
 }
 
+// 统计用户行为的函数
+function trackEvent(category, action, label = '') {
+    if (window.gtag) {
+        gtag('event', action, {
+            'event_category': category,
+            'event_label': label
+        });
+    }
+}
+
+// 获取当前选中的标签页
+function getCurrentTab() {
+    const activeTab = document.querySelector('.tab-button.active');
+    return activeTab ? activeTab.textContent : '';
+}
+
 // 初始化事件监听
-generateButton.addEventListener('click', startSpinning);
+generateButton.addEventListener('click', async () => {
+    if (generateButton.disabled) return;
+    
+    // 记录开始生成
+    trackEvent('生成', '点击', getCurrentTab());
+    
+    startSpinning();
+});
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', () => {
