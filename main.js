@@ -48,12 +48,10 @@ function initializeTabs() {
             button.classList.add('active');
             // 更新当前卡包类型
             currentPackType = button.classList[1];  // 使用第二个类名作为类型
-            // 重置界面
-            resetCharacterCard();
             // 更新维度显示
             updateDimensionDisplay();
-            // 重新初始化老虎机
-            initializeSlotMachine();
+            // 重新初始化老虎机，但保持问号状态
+            initializeSlotMachine(true);
         });
     });
 }
@@ -128,7 +126,7 @@ function createSlotReel(dimension, keywords) {
 }
 
 // 初始化老虎机
-function initializeSlotMachine() {
+function initializeSlotMachine(keepQuestionMarks = false) {
     slotMachine.innerHTML = '';
     currentSlots = [];
     
@@ -138,10 +136,12 @@ function initializeSlotMachine() {
         const slot = createSlotReel(dimension, keywords);
         slotMachine.appendChild(slot.container);
         currentSlots.push(slot);
+        
+        // 如果需要保持问号状态
+        if (keepQuestionMarks) {
+            slot.element.innerHTML = '<span>❓</span>';
+        }
     });
-    
-    // 重置角色卡片
-    resetCharacterCard();
 }
 
 // 生成随机延迟时间
@@ -162,8 +162,8 @@ function showLoadingState() {
     cardPlaceholder.innerHTML = `
         <div class="loading-animation">
             <div class="loading-icon">🎨</div>
-            <div class="loading-text">AI正在绘制角色...</div>
-            <div class="loading-subtext">这可能需要一点时间</div>
+            <div class="loading-text">正在绘制角色...</div>
+            <div class="loading-subtext"> </div>
         </div>
     `;
 }
@@ -272,30 +272,25 @@ async function playSpinningAnimation(finalKeywords) {
     cardPlaceholder.style.display = 'flex';
     cardPlaceholder.innerHTML = `
         <div class="card-placeholder-icon">🎲</div>
-        <div>正在抽取角色属性...</div>
+        <div>正在抽取角色词条...</div>
     `;
     cardPlaceholder.classList.remove('hidden');
     
-    // 先将除第一个维度外的所有维度重置为问号
-    const resetPromises = [];
+    // 立即重置除第一个维度外的所有维度为问号
     for (let i = 1; i < currentSlots.length; i++) {
-        resetPromises.push(
-            new Promise(resolve => {
-                setTimeout(() => {
-                    resetSlot(currentSlots[i]);
-                    resolve();
-                }, i * 100);
-            })
-        );
+        resetSlot(currentSlots[i]);
     }
-    await Promise.all(resetPromises);
+
+    // 立即开始第一个维度的动画
+    const firstSlotPromise = playSlotAnimation(currentSlots[0], finalKeywords[0]);
     
-    // 依次播放每个轮盘的动画
-    for (let i = 0; i < currentSlots.length; i++) {
+    // 依次播放剩余轮盘的动画
+    await firstSlotPromise;
+    for (let i = 1; i < currentSlots.length; i++) {
         await playSlotAnimation(currentSlots[i], finalKeywords[i]);
         
         if (i < currentSlots.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 150 + i * 50));
+            await new Promise(resolve => setTimeout(resolve, 150));
         }
     }
 }
@@ -487,7 +482,7 @@ async function resetCharacterCard() {
     cardPlaceholder.innerHTML = `
         <div class="card-placeholder-icon">🎴</div>
         <div class="card-placeholder-content">
-            <div class="start-hint">点击抽取按钮开始生成角色卡片</div>
+            <div class="start-hint">请先抽取角色词条</div>
             <div class="start-subhint"> </div>
         </div>
     `;
