@@ -174,6 +174,10 @@
             text-align: center;
             line-height: 1.2;
             position: relative;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
+            will-change: transform;
         }
 
         .slot-item > span {
@@ -681,6 +685,13 @@
         .history-card .character-description span {
             color: rgba(255, 255, 255, 0.6);
         }
+
+        @media screen and (min-width: 768px) {
+            .history-card .character-description {
+                font-size: 16px;
+            }
+        }
+
         /* 响应式布局优化 */
         @media screen and (max-width: 768px) {
             .history-section {
@@ -741,6 +752,8 @@
             opacity: 0;
             transition: opacity 0.2s ease;
             cursor: default;
+            width: 100%;
+            max-width: 600px;
         }
 
         .modal.show .modal-content {
@@ -750,24 +763,40 @@
         .modal-keywords {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
-            justify-content: center;
+            gap: 8px;
             margin-bottom: 24px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
+            width: 100%;
+            justify-content: center;
         }
 
-        .modal.show .modal-keywords {
-            opacity: 0.85;
+        .modal-image {
+            width: 100%;
+            max-width: 360px;
+            height: auto;
+            border-radius: 12px;
+            margin-bottom: 24px;
         }
 
-        .modal .keyword-tag {
-            color: #fff;
-            font-size: 14px;
-            letter-spacing: 0.5px;
+        .modal-description {
+            width: 100%;
+            text-align: left;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            margin: 0;
+            padding: 0;
         }
 
-        /* 角色卡样式 */
+        @media screen and (max-width: 768px) {
+            .modal-content {
+                padding: 24px 16px;
+            }
+            
+            .modal-description {
+                font-size: 14px;
+            }
+        }
+
         .modal .character-card {
             background: #1a1a1a;
             border-radius: 16px;
@@ -788,7 +817,7 @@
             line-height: 1.6;
             margin: 0;
             font-size: 16px;
-            text-align: center;
+            text-align: left;
         }
 
         .modal .character-card .character-description span {

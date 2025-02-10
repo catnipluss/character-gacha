@@ -658,9 +658,16 @@ function initializeHistory() {
 
     // 设置初始状态
     let isExpanded = false;
-    toggleButton.textContent = `历史记录 ▲`;
+    const history = loadHistory();
+    toggleButton.textContent = history.length === 0 ? '暂无历史记录' : `历史记录 ${isExpanded ? '▼' : '▲'}`;
+    
+    // 更新历史记录按钮状态
+    updateHistoryButtonState();
 
     toggleButton.addEventListener('click', async () => {
+        const currentHistory = loadHistory();
+        if (currentHistory.length === 0) return;
+        
         isExpanded = !isExpanded;
         toggleButton.textContent = `历史记录 ${isExpanded ? '▼' : '▲'}`;
         
@@ -705,13 +712,19 @@ async function updateHistoryDisplay() {
         historyGrid.appendChild(createHistoryCard(record));
     });
 
-    // 添加提示文本
+    // 更新或添加提示文本
+    let hint = document.querySelector('.history-hint');
     if (history.length > 0) {
-        const hint = document.createElement('div');
-        hint.className = 'history-hint';
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'history-hint';
+            historySection.appendChild(hint);
+        }
         hint.textContent = '为保证浏览体验，仅展示最近30个角色';
-        hint.style.cssText = 'color: rgba(255,255,255,0.4); font-size: 13px; text-align: center; padding: 16px 0 8px 0; width: 100%;';
-        historyGrid.appendChild(hint);
+        hint.style.cssText = 'color: rgba(255,255,255,0.4); font-size: 13px; text-align: center; padding: 1px 0 8px 0; width: 100%;';
+        hint.style.display = 'block';
+    } else if (hint) {
+        hint.style.display = 'none';
     }
 
     layoutMasonry();
@@ -755,20 +768,30 @@ function saveHistory(history) {
 }
 
 function addToHistory(record) {
-    const history = loadHistory();
-    history.unshift(record); // 添加到开头
-    
-    // 如果超过最大记录数，删除最旧的记录
+    let history = loadHistory();
+    history.unshift(record);
     if (history.length > MAX_HISTORY) {
-        history.splice(MAX_HISTORY);
+        history = history.slice(0, MAX_HISTORY);
     }
-    
     saveHistory(history);
     
     // 添加历史记录保存埋点
     trackEvent('历史记录', '保存记录', `${record.type}卡包`, 1);
     
+    // 更新历史记录按钮状态
+    updateHistoryButtonState();
+    
     updateHistoryDisplay();
+}
+
+// 更新历史记录按钮状态
+function updateHistoryButtonState() {
+    const toggleButton = document.getElementById('history-toggle');
+    if (!toggleButton) return;
+    
+    const history = loadHistory();
+    const isExpanded = toggleButton.textContent.includes('▼');
+    toggleButton.textContent = history.length === 0 ? '暂无历史记录' : `历史记录 ${isExpanded ? '▼' : '▲'}`;
 }
 
 // 创建历史记录卡片
@@ -849,12 +872,17 @@ function showModal(record) {
 
     // 点击任意位置关闭
     const closeModal = (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('show');
-            modal.removeEventListener('click', closeModal);
-            // 添加模态框关闭埋点
-            trackEvent('历史记录', '关闭详情', '', 1);
-        }
+        // 阻止事件冒泡
+        e.stopPropagation();
+        
+        // 添加关闭动画
+        modal.classList.remove('show');
+        
+        // 添加埋点
+        trackEvent('历史记录', '关闭详情', '', 1);
+        
+        // 移除事件监听
+        modal.removeEventListener('click', closeModal);
     };
     
     // 移除之前可能存在的事件监听器
