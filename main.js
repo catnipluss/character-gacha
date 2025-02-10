@@ -519,7 +519,12 @@ async function startSpinning() {
             initializeSlotMachine(true);
         }
         
-        // 2. 如果当前有显示的角色卡，先淡出
+        // 2. 重置所有状态，包括错误提示
+        cardError.style.display = 'none';
+        cardError.classList.remove('hidden');
+        generateButton.classList.remove('error');
+        
+        // 3. 如果当前有显示的角色卡，先淡出
         if (generatedImage.style.display === 'block') {
             generatedImage.classList.add('hidden');
             cardText.classList.add('hidden');
@@ -528,7 +533,7 @@ async function startSpinning() {
             cardText.style.display = 'none';
         }
         
-        // 3. 显示抽取提示
+        // 4. 显示抽取提示
         cardPlaceholder.style.display = 'flex';
         cardPlaceholder.innerHTML = `
             <div class="card-placeholder-icon">🎲</div>
@@ -538,7 +543,7 @@ async function startSpinning() {
         `;
         cardPlaceholder.classList.remove('hidden');
         
-        // 4. 生成最终关键词并立即开始API调用
+        // 5. 生成最终关键词并立即开始API调用
         const finalKeywords = generateFinalKeywords();
         const apiPromise = Promise.race([
             generateCharacter(finalKeywords),
@@ -547,30 +552,30 @@ async function startSpinning() {
             )
         ]);
         
-        // 5. 更新按钮状态
+        // 6. 更新按钮状态
         generateButton.textContent = '抽取中...';
         generateButton.disabled = true;
         
-        // 6. 播放动画（动画和API调用并行进行）
+        // 7. 播放动画（动画和API调用并行进行）
         const animationPromise = playSpinningAnimation(finalKeywords);
         
-        // 7. 等待动画完成
+        // 8. 等待动画完成
         await animationPromise;
         
-        // 8. 显示加载动画
+        // 9. 显示加载动画
         showLoadingState();
         
-        // 9. 等待API结果
+        // 10. 等待API结果
         const result = await apiPromise;
         
-        // 10. 显示结果
+        // 11. 显示结果
         await showSuccess(result);
         
-        // 11. 记录成功
+        // 12. 记录成功
         trackEvent('生成', '成功', getCurrentTab(), 1);
         trackEvent('卡包使用', '生成成功', getCurrentTab(), 1);
         
-        // 12. 添加到历史记录
+        // 13. 添加到历史记录
         addToHistory({
             timestamp: new Date().toISOString(),
             keywords: finalKeywords,
