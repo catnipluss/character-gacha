@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>角色抽卡器 v1.5.0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -538,7 +538,7 @@
             width: 92vw;
             max-width: 650px;
             margin: 20px auto;
-            padding: 0 16px;
+            padding: 0;
             box-sizing: border-box;
         }
 
@@ -571,11 +571,13 @@
             height: 0;
             overflow: hidden;
             transition: height 0.3s ease-out;
+            width: 100%;
         }
 
         .history-container.expanded {
             height: auto;
             padding: 16px 0;
+            overflow: visible; /* 展开时允许内容溢出 */
         }
 
         .history-grid {
@@ -592,7 +594,7 @@
 
         .history-item {
             position: absolute;
-            width: calc(50% - 8px);
+            width: calc(50% - 6px); /* 减小宽度以适应间隙 */
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -655,10 +657,12 @@
             backface-visibility: hidden;
         }
 
-        .history-card:hover {
-            box-shadow: 0 8px 24px rgba(127, 90, 240, 0.2);
-            border-color: var(--primary-color);
-            background: rgba(127, 90, 240, 0.05);
+        @media (hover: hover) {
+            .history-card:hover {
+                box-shadow: 0 8px 24px rgba(127, 90, 240, 0.2);
+                border-color: var(--primary-color);
+                background: rgba(127, 90, 240, 0.05);
+            }
         }
 
         .history-card img {
@@ -696,15 +700,21 @@
             }
         }
 
-        /* 响应式布局优化 */
         @media screen and (max-width: 768px) {
             .history-section {
-                width: 96vw;
+                width: 100%; /* 使用100%而不是96vw */
                 margin: 16px auto;
+                padding: 0 12px; /* 添加适当的内边距 */
+                box-sizing: border-box;
             }
 
             .history-grid {
-                gap: 20px 12px; /* 移动端稍微减小间距 */
+                gap: 16px 12px;
+                width: 100%; /* 确保网格占满容器宽度 */
+            }
+
+            .history-item {
+                width: calc(50% - 6px); /* 移动端减小间距 */
             }
         }
 

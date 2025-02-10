@@ -53,8 +53,8 @@ function initializeTabs() {
             
             // 重置当前槽位
             currentSlots = null;
-            // 重新初始化老虎机，但保持问号状态
-            initializeSlotMachine(true);
+            // 重新初始化老虎机，重置为问号状态
+            initializeSlotMachine(false);
             // 更新维度显示
             updateDimensionDisplay();
             
@@ -687,13 +687,29 @@ function initializeHistory() {
             // 4. 显示内容
             const grid = document.getElementById('history-grid');
             grid.classList.add('visible');
+            
+            // 5. 显示提示文案
+            const hint = document.querySelector('.history-hint');
+            if (hint) {
+                hint.style.display = 'block';
+            }
         } else {
             // 收起时反向操作
             const grid = document.getElementById('history-grid');
             grid.classList.remove('visible');
-            // 等待透明度动画完成
-            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // 隐藏提示文案
+            const hint = document.querySelector('.history-hint');
+            if (hint) {
+                hint.style.display = 'none';
+            }
+            
+            // 同时进行容器收起和滚动动画
             historyContainer.classList.remove('expanded');
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
         }
     });
 }
@@ -722,7 +738,8 @@ async function updateHistoryDisplay() {
         }
         hint.textContent = '为保证浏览体验，仅展示最近30个角色';
         hint.style.cssText = 'color: rgba(255,255,255,0.4); font-size: 13px; text-align: center; padding: 1px 0 8px 0; width: 100%;';
-        hint.style.display = 'block';
+        // 初始化时隐藏提示文案
+        hint.style.display = 'none';
     } else if (hint) {
         hint.style.display = 'none';
     }
