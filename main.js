@@ -5,7 +5,7 @@ const API_CONFIG = {
     url: 'https://api.coze.cn/v3/chat',
     botId: '7468199399991066659',
     userId: '123456789',
-    token: 'pat_W7un7PV8oUFgu1bImKhCF8FJMDXUilDsYxTWOOXsLJa4vg93MYiHs1NLxXO0PuXK'
+    token: 'pat_d3lWPpguoLyENBoA8SxJ84ZzTiOWaltjx9fUlQmf4gfPM70RXnJnhmRRNGTsxcmy'
 };
 
 // DOM 元素
